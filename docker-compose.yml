@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: ai-mcp-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: ai_mcp_orchestrator
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - ai-mcp-network
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ai-mcp-orchestrator
+    ports:
+      - "8000:8000"  # Backend API
+      - "3000:3000"  # Frontend
+    environment:
+      - PYTHONUNBUFFERED=1
+      - NODE_ENV=production
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    volumes:
+      - ./backend/workspace:/app/backend/workspace
+      - ./backend/logs:/app/backend/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - ai-mcp-network
+
+networks:
+  ai-mcp-network:
+    driver: bridge
